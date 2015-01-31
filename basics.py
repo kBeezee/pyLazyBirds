@@ -8,10 +8,9 @@ class AnimatedSprite(pygame.sprite.Group):
 
 class Game(object):
     def main(self, screen):
-        x = 0
-        while x != 5:
-            x += 1
-        print(x)
+        while True:
+            pressed_keys = pygame.key.get_pressed()
+            print(pressed_keys)
 
 
 if __name__ == '__main__':
