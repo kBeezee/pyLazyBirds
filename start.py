@@ -15,6 +15,7 @@ MYSCORE = HIGHSCORE = 0
 pygame.time.set_timer(MOVEEVENT, t)
 #http://stackoverflow.com/questions/14044147/animated-sprite-from-few-images
 
+
 '''
 #todo:
 @make speed better, some of it it is hard coded
