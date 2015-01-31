@@ -3,16 +3,19 @@ import sys
 WINDOWSIZE = (640, 480)
 TRUEBORDER = 20
 SPRITESCALE = 10
+mySCORE = 0
 #http://stackoverflow.com/questions/14044147/animated-sprite-from-few-images
 
 '''
 #todo:
 make speed better, some of it it is hard coded
-make it so
 '''
+
+
 def load_image(name, scale=tuple(numpy.divide(WINDOWSIZE, SPRITESCALE))):
     image = pygame.transform.scale(pygame.image.load(name), (scale))
     return image
+
 
 class TestSprite(pygame.sprite.Sprite):
     def __init__(self, strFolder, intFrameCount, strName='enemy'):
@@ -34,7 +37,7 @@ class TestSprite(pygame.sprite.Sprite):
 
     def update(self):
         #this controlls the animation of the frames (ie. Idle Animation)
-        if self.delayanimation < 3:
+        if self.delayanimation < 1:
             self.delayanimation += 1
         else:
             self.delayanimation = 0
@@ -49,24 +52,17 @@ class TestSprite(pygame.sprite.Sprite):
     def move(self):
         #place player where the mouse is.
         if self.name == 'player':
+            #player movement
             pos = pygame.mouse.get_pos()
             self.rect = pygame.Rect(pos[0], pos[1], numpy.divide(WINDOWSIZE[0],SPRITESCALE), numpy.divide(WINDOWSIZE[1],SPRITESCALE))
-        else: #define monster movement.
-            #reverse speed on borders
+        else:  # define monster movement.
+            #reverse speed when bird hits a specific border.
             self.BorderCheck()
-
-            #if flying to right, dont transform image, if flying to left, flip it.
             if self.speed[0] <= 0:
                 self.image = pygame.transform.flip(self.image, True, False)
-
             #add speed to location.
             location = tuple(numpy.add((self.rect[0], self.rect[1]), self.speed))
             self.rect = pygame.Rect(location[0], location[1], numpy.divide(WINDOWSIZE[0],SPRITESCALE), numpy.divide(WINDOWSIZE[1],SPRITESCALE))
-
-            #print(location)
-            #print(self.rect[0])
-            #print(self.speed)
-
 
     def BorderCheck(self):
         #reverse speed on borders
@@ -82,11 +78,24 @@ class TestSprite(pygame.sprite.Sprite):
             self.speed = (self.speed[0], self.speed[1]*-1)
 
 
+
+
+def CollisionDetection(fPLAYER, fSpriteGroup):
+    global mySCORE
+    for x in fSpriteGroup:
+        if pygame.sprite.collide_rect(fPLAYER, x) and x.name != 'player':
+            mySCORE = 0
+        else:
+            mySCORE += 1
+
+    #BAM! now we got a game.
+    print(mySCORE)
+
+
 def main():
     pygame.init()
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
-
 
 #ASS---------->ETS
     backGround = pygame.image.load('background/Full-background.png')
@@ -95,7 +104,7 @@ def main():
     PLAYERSPRITE = TestSprite('myBird/', 8, 'player')# use this sprite name for loading assets
     my_group = pygame.sprite.Group(PLAYERSPRITE)   # declaration looks different
 
-    for i in range(1,25):
+    for i in range(1,10):
         rnd = random.randrange(1, 9)
         if rnd == 1:
             my_group.add(TestSprite('badBirds/Bird A/', 4))
@@ -112,11 +121,9 @@ def main():
         else:
             my_group.add(TestSprite('badBirds/Bird G/', 8))
 
-
     while True:
         clock.tick(60)
         event = pygame.event.poll()
-        screen.blit(backGround, (0, 0))
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit(0)
@@ -124,14 +131,15 @@ def main():
             pygame.quit()
             sys.exit(0)
 
-        # Calling the 'my_group.update' function calls the 'update' function of all
-        # its member sprites. Calling the 'my_group.draw' function uses the 'image'
-        # and 'rect' attributes of its member sprites to draw the sprite.
-
-        #print(len(my_group))
+        #place BG
+        screen.blit(backGround, (0, 0))
+        #update all our sprites
         my_group.update()
+        #draw them all
+        CollisionDetection(PLAYERSPRITE, my_group)
         my_group.draw(screen)
         pygame.display.flip()
+
 
 if __name__ == '__main__':
     main()
