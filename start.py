@@ -155,7 +155,6 @@ class Bird(pygame.sprite.Sprite):
         if self.speed[0] <= 0:
             self.image = pygame.transform.flip(self.image, True, False)
         #add speed to location.
-        print(self.quadrant)
         location = tuple(numpy.add((self.rect[0], self.rect[1]), self.speed))
         #apply changes to the rectangle that contains the image.
         self.rect = pygame.Rect(location[0], location[1], 0, 0)
