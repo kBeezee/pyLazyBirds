@@ -1,111 +1,167 @@
+#!/usr/bin/env python
+
 import pygame
-import random, numpy
+import os
+import random
+import numpy
 from datetime import datetime
 from pygame.locals import *
-
+    #http://stackoverflow.com/questions/28258944/using-pygame-draw-a-copy-of-an-image-in-a-different-location
+    #http://stackoverflow.com/questions/14044147/animated-sprite-from-few-images
 import sys
+
+pygame.init()
+pygame.mouse.set_visible(False)
+clock = pygame.time.Clock()
+pygame.display.set_caption('Lazy Birds')
+screen = pygame.display.set_mode((1024, 576))
+WINDOWSIZE = (1024, 576)
+
 ##CONSTANTS
-WINDOWSIZE = (640, 480)
 TRUEBORDER = 20
-SPRITESCALE = 10
-MOVEEVENT, t = pygame.USEREVENT+1, 1000
+SPRITESCALE = 15
 LASTSECOND = datetime.now().second
 MYSCORE = HIGHSCORE = 0
+ALLASSETS = []
+PlayersGroup = pygame.sprite.Group()
+EnemyGroup = pygame.sprite.Group()
+AllGroup = pygame.sprite.Group()
 
+# Create an event once every second.
+MOVEEVENT, t = pygame.USEREVENT+1, 1000
 pygame.time.set_timer(MOVEEVENT, t)
-#http://stackoverflow.com/questions/14044147/animated-sprite-from-few-images
 
 
-'''
-#todo:
-@make speed better, some of it it is hard coded
-@all asset loading is done from the disk, i want to preload alel assets as global vars
-    and then copy those vars (leaving them untouched) to the assets being added to ingame vars.
-@collision is messed up, fix it.
-@make it so on collision, the cornrs of the screen flash a red alpha
-@make alt+enter toggle between fullscreen/window, i have the key events set up, and i found
-    a function that is supposed to do it, but i get errors.
-'''
+
+#this function writes something in a pre defined spot.
+def write(msg="pygame is cool"):
+    myfont = pygame.font.SysFont("None", 32)
+    mytext = myfont.render(msg, True, (0,0,0))
+    mytext = mytext.convert_alpha()
+    return mytext
+
 
 def load_image(name, scale=tuple(numpy.divide(WINDOWSIZE, SPRITESCALE))):
-    image = pygame.transform.scale(pygame.image.load(name), (scale))
+    image = pygame.transform.scale(pygame.image.load(name), scale)
     return image
 
 
-def GetQuadrent(fLocation):
-    if fLocation[0] >= WINDOWSIZE[0]/2 and fLocation[1] <= WINDOWSIZE[1]/2:
-        return 1
-    if fLocation[0] <= WINDOWSIZE[0]/2 and fLocation[1] <= WINDOWSIZE[1]/2:
-        return 2
-    if fLocation[0] <= WINDOWSIZE[0]/2 and fLocation[1] >= WINDOWSIZE[1]/2:
-        return 3
-    if fLocation[0] >= WINDOWSIZE[0]/2 and fLocation[1] >= WINDOWSIZE[1]/2:
-        return 4
-
-class TestSprite(pygame.sprite.Sprite):
+#make class to hold the preloaded assets.
+class PreLoadedSprites(pygame.sprite.Sprite):
     def __init__(self, strFolder, intFrameCount, strName='enemy'):
-        super(TestSprite, self).__init__()
         self.images = []
         for i in range(1, intFrameCount+1):
             self.images.append(load_image(strFolder + 'frame-' + str(i) + '.png'))
-
         self.name = strName
         self.intFrameCount = intFrameCount
+
+        #self.index = 0
+        #self.NextFrameCounter = 0
+        #self.NextFrameMax = 5  # raise to slow down, lower to speed up
+        #self.image = self.images[self.index]
+        #self.image = self.image.convert_alpha()
+        #self.rect = self.image.get_rect()
+
+#load all my assets
+AssetIndex = (0,1,2,3,4,6,7,8,9)
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird A/', 4))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird B/', 4))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird C/', 4))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird D/', 4))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird E/', 8))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird F/flying/', 8, 'player'))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird G/', 8))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird H/flying/', 8))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird I/', 8))
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird J/', 8))
+
+
+#this is a class that holds the sprite the player controls
+class PlayerControlled(pygame.sprite.Sprite):
+    def __init__(self, PreLoadedSpriteAsset, strName='player'):
+        pygame.sprite.Sprite.__init__(self)
+        self.images = []
+        self.images = PreLoadedSpriteAsset.images
+        self.name = strName
+        self.intFrameCount = PreLoadedSpriteAsset.intFrameCount
         self.index = 0
-        self.delayanimation = 0
+        self.NextFrameCounter = 0
+        self.NextFrameMax = 5
+        self.image = self.images[self.index]
+        self.image = self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+
+    def update(self, seconds=0):
+        # no need for seconds but the other sprites need it
+        self.rect.center = pygame.mouse.get_pos()
+        #deal with animation
+        if self.NextFrameCounter < self.NextFrameMax:
+            self.NextFrameCounter += 1
+        else:
+            self.index += 1
+            if self.index >= len(self.images):
+                self.index = 0
+            self.NextFrameCounter = 0
         self.image = self.images[self.index]
 
-        #lets see if this works better for collision detection
-        self.mask = pygame.mask.from_surface(self.image)
+
+class Bird(pygame.sprite.Sprite):
+    def __init__(self, PreLoadedSpriteAsset, area=screen.get_rect(), strName='enemy'):
+        pygame.sprite.Sprite.__init__(self)
+        self.images = []
+        self.images = PreLoadedSpriteAsset.images
+        self.name = strName
+        self.intFrameCount = PreLoadedSpriteAsset.intFrameCount
+        self.index = 0
+        self.NextFrameCounter = 0
+        self.NextFrameMax = 5
+        self.image = self.images[self.index]
+        self.image = self.image.convert_alpha()
 
         #get a random location that isnt in the same quadrant as the player (ID as mouse location)
         fPlayer = pygame.mouse.get_pos()
-        location = (random.randrange(TRUEBORDER,WINDOWSIZE[0]-TRUEBORDER), random.randrange(TRUEBORDER,WINDOWSIZE[1]-TRUEBORDER))
+        location = (random.randrange(TRUEBORDER,WINDOWSIZE[0]-TRUEBORDER), random.randrange(TRUEBORDER,350))
         self.quadrant = GetQuadrent(location)
         while self.quadrant == GetQuadrent(fPlayer):
-            location = (random.randrange(TRUEBORDER,WINDOWSIZE[0]-TRUEBORDER), random.randrange(TRUEBORDER,WINDOWSIZE[1]-TRUEBORDER))
+            location = (random.randrange(TRUEBORDER,WINDOWSIZE[0]-TRUEBORDER), random.randrange(TRUEBORDER,350))
             self.quadrant = GetQuadrent(location)
-
         self.rect = pygame.Rect(location[0], location[1], 0, 0)
+        #self.rect[0] = location[0]
+        #self.rect[1] = location[1]
+        self.area = area
 
         #this keeps the birds from just staying in one spot, change it to 'or' to make them always move on diagonals
         self.speed = (0, 0)
         while self.speed[0] == 0 and self.speed[1] == 0:
-            self.speed = (random.randrange(-3, 3), random.randrange(-3, 3))
+            self.speed = (random.randrange(-3, 3), random.choice((-3, -2, -1, 1, 2, 3)))
 
-        # uncomment to keep birds from moving (testing)
-        #self.speed = (0, 0)
-
-    def update(self):
-        #this controlls the animation of the frames (ie. Idle Animation)
-        if self.delayanimation < 5:
-            self.delayanimation +=   1
+    def update(self, second=0):
+        #deal with animation
+        if self.NextFrameCounter < self.NextFrameMax:
+            self.NextFrameCounter += 1
         else:
-            self.delayanimation = 0
             self.index += 1
-        if self.index >= len(self.images):
-            self.index = 0
+            if self.index >= len(self.images):
+                self.index = 0
+            self.NextFrameCounter = 0
         self.image = self.images[self.index]
-
-        #this move the sprite.
+        #movement is is kept seperate from animation
         self.move()
 
     def move(self):
-        #place player where the mouse is.
-        if self.name == 'player':
-            #player movement
-            pos = pygame.mouse.get_pos()
-            self.rect = pygame.Rect(pos[0], pos[1], numpy.divide(WINDOWSIZE[0],SPRITESCALE), numpy.divide(WINDOWSIZE[1],SPRITESCALE))
-        else:  # define monster movement.
-            #reverse speed when bird hits a specific border.
-            self.BorderCheck()
-            if self.speed[0] <= 0:
-                self.image = pygame.transform.flip(self.image, True, False)
-            #add speed to location.
-            location = tuple(numpy.add((self.rect[0], self.rect[1]), self.speed))
-            self.rect = pygame.Rect(location[0], location[1], 0, 0)
+        #reverse speed when bird hits a specific border.
+        self.bordercheck()
+        #flip the image if its going left or right
+        if self.speed[0] <= 0:
+            self.image = pygame.transform.flip(self.image, True, False)
+        #add speed to location.
+        print(self.quadrant)
+        location = tuple(numpy.add((self.rect[0], self.rect[1]), self.speed))
+        #apply changes to the rectangle that contains the image.
+        self.rect = pygame.Rect(location[0], location[1], 0, 0)
+        #self.rect = self.image.get_rect()
 
-    def BorderCheck(self):
+    def bordercheck(self):
         #reverse speed on borders
         #self.speed = (random.randrange(-2,2), random.randrange(-2,2))
         location = (self.rect[0], self.rect[1])
@@ -118,41 +174,48 @@ class TestSprite(pygame.sprite.Sprite):
         elif location[1] >= WINDOWSIZE[1]-TRUEBORDER:
             self.speed = (self.speed[0], self.speed[1]*-1)
 
-def CollisionDetection(fPLAYER, fSpriteGroup):
+
+'''
+#todo:
+@Paralax the background
+
+@collision can be made better, try looking @ .center of rect...
+-I want the screen edges to flash and red screen with 50% transperancy when collision happens.
+
+@make alt+enter toggle between fullscreen/window, i have the key events set up, and i found
+    a function that is supposed to do it, but i get errors.
+'''
+
+
+def GetQuadrent(fLocation):
+    if fLocation[0] >= WINDOWSIZE[0]/2 and fLocation[1] <= WINDOWSIZE[1]/2:
+        return 1
+    if fLocation[0] <= WINDOWSIZE[0]/2 and fLocation[1] <= WINDOWSIZE[1]/2:
+        return 2
+    if fLocation[0] <= WINDOWSIZE[0]/2 and fLocation[1] >= WINDOWSIZE[1]/2:
+        return 3
+    if fLocation[0] >= WINDOWSIZE[0]/2 and fLocation[1] >= WINDOWSIZE[1]/2:
+        return 4
+
+
+def CollisionDetection(fPlayerGroup, fSpriteGroup):
     global MYSCORE, HIGHSCORE, LASTSECOND
     THISSECOND = datetime.now().second
-    for x in fSpriteGroup:
-        #Collision is true
-#        if pygame.sprite.collide_rect(fPLAYER, x) and x.name != 'player':
-# this makes the game eaiser beacause the sprites are mapped and collision is not based on rectangles.
-        if pygame.sprite.collide_mask(fPLAYER, x) and x.name != 'player':
-            MYSCORE = 0
-            LASTSECOND = datetime.now().second
-        #collision is not true
-        else:
-            if THISSECOND != LASTSECOND:
-                MYSCORE += 1
+    for players in fPlayerGroup:
+        for enemy in fSpriteGroup:
+            #Collision is true
+            if pygame.sprite.collide_mask(players, enemy):
+                MYSCORE = 0
                 LASTSECOND = datetime.now().second
+                enemy.kill()
+            #collision is not true
+            else:
+                if THISSECOND != LASTSECOND:
+                    MYSCORE += 1
+                    LASTSECOND = datetime.now().second
     if MYSCORE > HIGHSCORE:
         HIGHSCORE = MYSCORE
     LASTSECOND = datetime.now().second
-
-def GetRandomBird():
-    rnd = random.randrange(1, 8)
-    if rnd == 1:
-        return TestSprite('badBirds/Bird A/', 4)
-    elif rnd == 2:
-        return TestSprite('badBirds/Bird B/', 4)
-    elif rnd == 3:
-        return TestSprite('badBirds/Bird C/', 4)
-    elif rnd == 4:
-        return TestSprite('badBirds/Bird D/', 4)
-    elif rnd == 6:
-        return TestSprite('badBirds/Bird E/', 8)
-    elif rnd == 7:
-        return TestSprite('badBirds/Bird F/flying/', 8)
-    else:
-        return TestSprite('badBirds/Bird G/', 8)
 
 
 def toggle_fullscreen():
@@ -182,21 +245,24 @@ def toggle_fullscreen():
 
     return screen
 
-def main():
-    pygame.init()
-    pygame.mouse.set_visible(False)
-    clock = pygame.time.Clock()
-    pygame.display.set_caption('Lazy Birds')
-    screen = pygame.display.set_mode(WINDOWSIZE)
 
-#ASS---------->ETS
+def main():
+#background is pulled up old school style, this will be fixed when
+#parallaxing is introduced.
     backGround = pygame.image.load('background/Full-background.png')
     backGround = pygame.transform.scale(backGround, WINDOWSIZE)
-    PLAYERSPRITE = TestSprite('myBird/', 8, 'player')
-    my_group = pygame.sprite.Group(PLAYERSPRITE)   # declaration of important group.
 
-    for i in range(1, 2):
-        my_group.add(GetRandomBird())
+    #make player controlled object
+    newbird = PlayerControlled(ALLASSETS[5])
+    PlayersGroup.add(newbird)
+    AllGroup.add(newbird)
+
+    #make enemy birds
+    for i in range(1, 5):
+        rnd = random.choice(AssetIndex)
+        newbird = Bird(ALLASSETS[rnd])
+        EnemyGroup.add(newbird)
+        AllGroup.add(newbird)
 
     while True:
         clock.tick(60)
@@ -207,7 +273,10 @@ def main():
         #Birds get added when score is 10, 20, 30 etc. This makes it so only one bird is added per second
         if event.type == MOVEEVENT:
             if MYSCORE % 10 == 0 and MYSCORE >= 10:
-                my_group.add(GetRandomBird())
+                rnd = random.choice(AssetIndex)
+                newbird = Bird(ALLASSETS[rnd])
+                EnemyGroup.add(newbird)
+                AllGroup.add(newbird)
 
         #Catch Key Presses
         if event.type == pygame.KEYDOWN:
@@ -215,18 +284,21 @@ def main():
             if pressedkeys[pygame.K_ESCAPE]:
                 pygame.quit()
                 sys.exit(0)
-            if pressedkeys[pygame.K_RETURN] and pressedkeys[pygame.K_LALT]:
-                pass
-                #toggle_fullscreen()
+            if pressedkeys[pygame.K_RALT] or pressedkeys[pygame.K_LALT]:
+                if event.type is pygame.KEYDOWN and event.key == pygame.K_f:
+                    pass
+                    #pygame.display.set_mode(WINDOWSIZE, pygame.FULLSCREEN)
+                if event.type is pygame.KEYDOWN and event.key == pygame.K_w:
+                    pass
+                    #pygame.display.set_mode(WINDOWSIZE)
 
-        #place BG
-        screen.blit(backGround, (0, 0))
+        CollisionDetection(PlayersGroup, EnemyGroup)
         #update all our sprites
-        my_group.update()
-        #draw them all
-        CollisionDetection(PLAYERSPRITE, my_group)
-        my_group.draw(screen)
-
+        AllGroup.update()
+        #place BG
+        #TODO: Function to Parallax will go here, it should be similar to the sprites.
+        screen.blit(backGround, (0, 0))
+        AllGroup.draw(screen)
         # Display score
         font = pygame.font.Font(None, 36)
         text = font.render('Your Score: ' + str(MYSCORE), 1, (10, 15, 20))
@@ -235,7 +307,7 @@ def main():
 
         #debug stuff
         if event.type == MOVEEVENT:
-            print('BirdNumber: ' + str(len(my_group)))
+            print('BirdNumber: ' + str(len(AllGroup)))
             print('Highscore: ' + str(HIGHSCORE))
 
 if __name__ == '__main__':

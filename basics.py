@@ -21,3 +21,4 @@ if __name__ == '__main__':
 
     #Happens after the game quits
     print("Close.")
+
