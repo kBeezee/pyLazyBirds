@@ -92,8 +92,6 @@ class PlayerControlled(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
 
     def update(self, seconds=0):
-        # no need for seconds but the other sprites need it
-        self.rect.center = pygame.mouse.get_pos()
         #deal with animation
         if self.NextFrameCounter < self.NextFrameMax:
             self.NextFrameCounter += 1
@@ -104,7 +102,11 @@ class PlayerControlled(pygame.sprite.Sprite):
             self.NextFrameCounter = 0
         self.image = self.images[self.index]
 
+        #note how player does not have .move this is because the player follows the mouse.
+        self.rect.center = pygame.mouse.get_pos()
 
+
+#this class contains the enemy birds.
 class Bird(pygame.sprite.Sprite):
     def __init__(self, PreLoadedSpriteAsset, area=screen.get_rect(), strName='enemy'):
         pygame.sprite.Sprite.__init__(self)
@@ -121,8 +123,7 @@ class Bird(pygame.sprite.Sprite):
         #get a random location that isnt in the same quadrant as the player (ID as mouse location)
         fPlayer = pygame.mouse.get_pos()
         location = (random.randrange(TRUEBORDER,WINDOWSIZE[0]-TRUEBORDER), random.randrange(TRUEBORDER,350))
-        self.quadrant = GetQuadrent(location)
-        while self.quadrant == GetQuadrent(fPlayer):
+        while GetQuadrent(location) == GetQuadrent(fPlayer):
             location = (random.randrange(TRUEBORDER,WINDOWSIZE[0]-TRUEBORDER), random.randrange(TRUEBORDER,350))
             self.quadrant = GetQuadrent(location)
         self.rect = pygame.Rect(location[0], location[1], 0, 0)
@@ -145,6 +146,7 @@ class Bird(pygame.sprite.Sprite):
                 self.index = 0
             self.NextFrameCounter = 0
         self.image = self.images[self.index]
+
         #movement is is kept seperate from animation
         self.move()
 
@@ -158,11 +160,9 @@ class Bird(pygame.sprite.Sprite):
         location = tuple(numpy.add((self.rect[0], self.rect[1]), self.speed))
         #apply changes to the rectangle that contains the image.
         self.rect = pygame.Rect(location[0], location[1], 0, 0)
-        #self.rect = self.image.get_rect()
 
     def bordercheck(self):
-        #reverse speed on borders
-        #self.speed = (random.randrange(-2,2), random.randrange(-2,2))
+        #reverse speed when birds reach the borders
         location = (self.rect[0], self.rect[1])
         if location[0] <= TRUEBORDER:
             self.speed = (self.speed[0]*-1, self.speed[1])
@@ -172,7 +172,6 @@ class Bird(pygame.sprite.Sprite):
             self.speed = (self.speed[0], self.speed[1]*-1)
         elif location[1] >= WINDOWSIZE[1]-TRUEBORDER:
             self.speed = (self.speed[0], self.speed[1]*-1)
-
 
 '''
 #todo:
@@ -257,7 +256,7 @@ def main():
     AllGroup.add(newbird)
 
     #make enemy birds
-    for i in range(1, 5):
+    for i in range(1, 50):
         rnd = random.choice(AssetIndex)
         newbird = Bird(ALLASSETS[rnd])
         EnemyGroup.add(newbird)
@@ -271,6 +270,11 @@ def main():
             sys.exit(0)
         #Birds get added when score is 10, 20, 30 etc. This makes it so only one bird is added per second
         if event.type == MOVEEVENT:
+            if len(EnemyGroup) == 0:
+                rnd = random.choice(AssetIndex)
+                newbird = Bird(ALLASSETS[rnd])
+                EnemyGroup.add(newbird)
+                AllGroup.add(newbird)
             if MYSCORE % 10 == 0 and MYSCORE >= 10:
                 rnd = random.choice(AssetIndex)
                 newbird = Bird(ALLASSETS[rnd])
@@ -292,16 +296,18 @@ def main():
                     #pygame.display.set_mode(WINDOWSIZE)
 
         CollisionDetection(PlayersGroup, EnemyGroup)
-        #update all our sprites
+        #update all our sprites(Animation and Movement)
         AllGroup.update()
         #place BG
         #TODO: Function to Parallax will go here, it should be similar to the sprites.
         screen.blit(backGround, (0, 0))
+        #draw all sprites on top of the background
         AllGroup.draw(screen)
-        # Display score
+        #draw our score on the screen.
         font = pygame.font.Font(None, 36)
         text = font.render('Your Score: ' + str(MYSCORE), 1, (10, 15, 20))
         screen.blit(text,(TRUEBORDER/3, WINDOWSIZE[1]-TRUEBORDER-TRUEBORDER-TRUEBORDER-TRUEBORDER))
+        #apply changes, basically.
         pygame.display.flip()
 
         #debug stuff
