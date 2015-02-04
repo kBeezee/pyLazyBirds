@@ -63,7 +63,7 @@ class PreLoadedSprites(pygame.sprite.Sprite):
         #self.rect = self.image.get_rect()
 
 #load all my assets
-AssetIndex = (0,1,2,3,4,6,7,8,9)
+AssetIndex = (0,1,2,3,4,6,7,8,9,10)
 ALLASSETS.append(PreLoadedSprites('badBirds/Bird A/', 4))
 ALLASSETS.append(PreLoadedSprites('badBirds/Bird B/', 4))
 ALLASSETS.append(PreLoadedSprites('badBirds/Bird C/', 4))
@@ -74,7 +74,7 @@ ALLASSETS.append(PreLoadedSprites('badBirds/Bird G/', 8))
 ALLASSETS.append(PreLoadedSprites('badBirds/Bird H/flying/', 8))
 ALLASSETS.append(PreLoadedSprites('badBirds/Bird I/', 8))
 ALLASSETS.append(PreLoadedSprites('badBirds/Bird J/', 8))
-
+ALLASSETS.append(PreLoadedSprites('badBirds/Bird K/flying/', 8))
 
 #this is a class that holds the sprite the player controls
 class PlayerControlled(pygame.sprite.Sprite):
